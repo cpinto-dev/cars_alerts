@@ -1,8 +1,14 @@
 # Alertas de vehículos de ocasión — The Stellantis Club
 
 Revisa cada 20 minutos si hay coches nuevos en
-https://thestellantisclub.com/vehiculos-ocasion y te avisa por Telegram.
+https://thestellantisclub.com/vehiculos-ocasion, o si alguno pasa a estar
+**reservado** (o se libera de nuevo), y te avisa por Telegram en cada caso.
 Se ejecuta en GitHub Actions, gratis, sin que tengas que tener tu PC encendido.
+
+Notificaciones que puedes recibir:
+- 🆕 Vehículo nuevo disponible
+- 🔒 Vehículo reservado (ya no disponible)
+- 🔓 Vehículo disponible de nuevo (por si se cancela una reserva)
 
 El script hace **login automático en cada ejecución** (la sesión de la web solo dura
 2 horas, así que en vez de guardar cookies que caducan, el script inicia sesión él
@@ -49,10 +55,18 @@ Ya no hace falta copiar ninguna cookie a mano — el script hace login él solo 
 4. Espera ~30 segundos y revisa que termine en verde ✅. Si falla, entra en el detalle
    de la ejecución y mira el mensaje de error — casi siempre será que el número de
    empleado, la sociedad o la ruta de login no coinciden.
-   - La primera ejecución **no envía notificaciones** (guarda los ~200 coches actuales
-     como punto de partida). A partir de la segunda ejecución, cualquier coche nuevo
-     te llegará por Telegram.
+   - La primera ejecución **no envía notificaciones** (guarda el estado actual de
+     todos los coches, disponibles y reservados, como punto de partida en
+     `data/estado_vehiculos.json`). A partir de la segunda ejecución, cualquier
+     cambio (coche nuevo, reservado, o liberado) te llegará por Telegram.
 5. A partir de aquí, se ejecutará solo cada 20 minutos, sin que tengas que hacer nada.
+
+**Nota si ya tenías la versión anterior del proyecto funcionando:** el fichero de
+estado ha cambiado de nombre (antes `data/ids_conocidos.json`, ahora
+`data/estado_vehiculos.json`, porque ahora guarda también si cada coche está
+reservado o no). El script migra automáticamente el fichero antiguo la primera vez
+que lo ejecutes con esta versión nueva, así que no necesitas borrar ni tocar nada:
+simplemente sustituye `check_vehiculos.py` y el workflow por los nuevos.
 
 ## Si algún día deja de funcionar
 
