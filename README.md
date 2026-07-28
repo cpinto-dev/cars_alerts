@@ -68,7 +68,56 @@ reservado o no). El script migra automáticamente el fichero antiguo la primera 
 que lo ejecutes con esta versión nueva, así que no necesitas borrar ni tocar nada:
 simplemente sustituye `check_vehiculos.py` y el workflow por los nuevos.
 
-## Si algún día deja de funcionar
+## Paso 5 — Configurar el disparador cada 20 minutos (cron externo)
+
+**Importante:** el `schedule` interno de GitHub Actions no es fiable en repos
+poco activos (puede retrasarse horas). Por eso este workflow ya NO tiene un
+`schedule` propio — se lanza desde un servicio externo gratuito que llama a la
+API de GitHub con precisión real.
+
+### 5.1 — Crear un token de acceso personal (PAT) en GitHub
+
+1. Ve a tu perfil de GitHub → **Settings** (el de tu cuenta, no el del repo) →
+   en el menú de la izquierda, baja hasta **Developer settings**.
+2. **Personal access tokens → Fine-grained tokens → Generate new token**.
+3. Ponle un nombre, por ejemplo `cron-vehiculos`.
+4. En **Repository access**, elige **"Only select repositories"** y selecciona
+   tu repo (`cars_alerts` o como lo hayas llamado).
+5. En **Permissions → Repository permissions**, busca **"Actions"** y ponlo en
+   **"Read and write"**.
+6. Genera el token y **cópialo** — solo se muestra una vez (empieza por `github_pat_...`).
+
+Este token es una credencial sensible: no lo compartas ni lo pegues en ningún
+sitio salvo en el paso siguiente (cron-job.org, en un campo que queda oculto).
+
+### 5.2 — Crear la tarea programada en cron-job.org
+
+1. Entra en **https://cron-job.org** y crea una cuenta gratuita.
+2. **Create cronjob**.
+3. **Title**: algo como "Comprobar vehículos Stellantis".
+4. **URL**:
+   ```
+   https://api.github.com/repos/TU_USUARIO/TU_REPO/actions/workflows/check-vehiculos.yml/dispatches
+   ```
+   Sustituye `TU_USUARIO/TU_REPO` por los tuyos (ej. `cpinto-dev/cars_alerts`).
+5. **Request method**: `POST`.
+6. Baja a **"Advanced"** (o "Headers/Body" según la versión de la web) y añade:
+   - **Header** `Authorization` con valor `Bearer TU_TOKEN` (sustituye por el PAT del paso 5.1)
+   - **Header** `Accept` con valor `application/vnd.github+json`
+   - **Header** `Content-Type` con valor `application/json`
+   - **Body** (raw JSON):
+     ```json
+     {"ref":"main"}
+     ```
+     (si tu rama principal se llama `master` en vez de `main`, pon `master`)
+7. En **Schedule**, elige que se ejecute **cada 20 minutos**.
+8. Guarda y activa la tarea.
+9. cron-job.org te deja ver el historial de ejecuciones y si la petición devolvió éxito (código 204) o error — puedes usarlo para comprobar que está disparando bien el workflow.
+
+A partir de aquí, es cron-job.org quien despierta al workflow de GitHub cada 20
+minutos con precisión, en vez de depender del scheduler interno de GitHub.
+
+
 
 Como el login es automático, no debería haber mantenimiento. Si un día ves que el
 workflow falla de forma persistente en la pestaña Actions, seguramente es porque
@@ -78,7 +127,8 @@ con las DevTools para ver qué ha cambiado.
 
 ## Cambiar la frecuencia
 
-En `.github/workflows/check-vehiculos.yml`, la línea `cron: "*/20 * * * *"` controla
-la frecuencia. Por ejemplo, `*/10 * * * *` sería cada 10 minutos. Con una ejecución de
-este tipo (que dura unos segundos) cada 20 min no hay ningún problema con el límite
-gratuito de minutos de GitHub Actions.
+Ahora la frecuencia se controla desde **cron-job.org** (Paso 5), no desde el
+archivo del workflow. Entra en tu tarea en cron-job.org y cambia el intervalo del
+**Schedule**. Con una ejecución de este tipo (que dura unos segundos) incluso
+cada 5-10 minutos no hay ningún problema con el límite gratuito de minutos de
+GitHub Actions.
