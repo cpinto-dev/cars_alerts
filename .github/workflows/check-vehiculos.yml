@@ -1,10 +1,12 @@
 name: Comprobar vehículos de ocasión
 
 on:
-  schedule:
-    # Cada 20 minutos. Sintaxis cron: minuto hora día mes día-semana
-    - cron: "*/20 * * * *"
-  workflow_dispatch: {}   # permite lanzarlo a mano desde la pestaña Actions
+  # El disparador "schedule" de GitHub Actions NO es fiable en repos de poca
+  # actividad: puede retrasarse varias horas sin avisar. Por eso este workflow
+  # se lanza desde un cron externo (cron-job.org) que llama a la API de GitHub
+  # para disparar "workflow_dispatch" cada 20 minutos con precisión real.
+  # Ver el README para configurarlo.
+  workflow_dispatch: {}
 
 permissions:
   contents: write   # necesario para poder hacer commit del estado actualizado
