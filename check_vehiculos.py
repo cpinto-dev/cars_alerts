@@ -16,7 +16,9 @@ import os
 import re
 import sys
 import urllib.parse
+from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import requests
 
@@ -222,24 +224,97 @@ def guardar_estado(estado: dict):
         json.dump(estado, f, ensure_ascii=False, indent=0, sort_keys=True)
 
 
+# Texto que Stellantis pone cuando no hay equipamiento real cargado para ese
+# coche en concreto; si equipment_new es justo esto, no aporta nada y no lo
+# mostramos en el mensaje.
+EQUIPAMIENTO_PLACEHOLDER = "Consulta el equipamiento con tu concesionario"
+
+# Límite de caracteres para el bloque de equipamiento dentro del mensaje,
+# para no acercarnos al límite de 4096 caracteres de Telegram en coches con
+# listados de extras muy largos.
+MAX_LARGO_EQUIPAMIENTO = 500
+
+# Traducción de "provenance". Solo se han visto estos dos valores en el feed;
+# "Campo" es claramente flota/uso interno. El valor "5" no viene documentado
+# por Stellantis en ningún sitio, así que lo etiquetamos como "sin confirmar"
+# en vez de inventarnos con seguridad qué significa.
+PROVENANCE_LABELS = {
+    "Campo": "Flota (uso interno)",
+    "5": "Código 5 (sin confirmar oficialmente — en la muestra coincide con "
+         "coches matriculados desde finales de 2024, podría ser dirección/demo)",
+}
+
+
+def _formatear_fecha_actualizacion(iso_timestamp: str) -> str:
+    """Convierte el 'updated_at' (UTC, formato ISO) a hora de Madrid legible."""
+    try:
+        dt_utc = datetime.fromisoformat(iso_timestamp.replace("Z", "+00:00"))
+        dt_madrid = dt_utc.astimezone(ZoneInfo("Europe/Madrid"))
+        return dt_madrid.strftime("%d/%m/%Y %H:%M")
+    except (ValueError, TypeError):
+        return iso_timestamp
+
+
 def formatear_coche(coche: dict) -> str:
     marca = coche.get("brand", "?")
     modelo = coche.get("name", "?")
+    gama = coche.get("carline")
     precio = coche.get("price_final", "?")
     km = coche.get("car_km", "?")
     combustible = coche.get("fuel", "?")
+    cambio = coche.get("engine")
     color = coche.get("colour", "?")
     anio = coche.get("year", "?")
     matricula = coche.get("plate", "?")
+    matriculacion = coche.get("plate_date")
+    vin = coche.get("vin")
+    equipamiento = (coche.get("equipment_new") or "").strip()
+    procedencia = coche.get("provenance")
+    campana = coche.get("campa") or coche.get("code_campa")
+    actualizado = coche.get("updated_at")
+    codigo_config = coche.get("code")
+    codigo_opciones = coche.get("code_options")
+    if codigo_opciones in (None, "0", ""):
+        codigo_opciones = None
 
-    return (
-        f"🚗 <b>{marca} - {modelo}</b>\n"
-        f"💰 Precio: {precio} €\n"
-        f"📅 Año: {anio}   🛣️ Km: {km}\n"
-        f"⛽ Combustible: {combustible}   🎨 Color: {color}\n"
-        f"🔖 Matrícula: {matricula}\n"
-        f"🔗 {SITE_BASE}/vehiculos-ocasion"
-    )
+    lineas = [f"🚗 <b>{marca} - {modelo}</b>"]
+    if gama and gama.strip().upper() != modelo.strip().upper():
+        lineas.append(f"🏷️ Gama: {gama}")
+    lineas.append(f"💰 Precio: {precio} €")
+    lineas.append(f"📅 Año: {anio}   🛣️ Km: {km}")
+    if matriculacion:
+        lineas.append(f"📆 Matriculación: {matriculacion}")
+    lineas.append(f"⛽ Combustible: {combustible}   🎨 Color: {color}")
+    if cambio:
+        lineas.append(f"⚙️ Cambio/tracción: {cambio}")
+    lineas.append(f"🔖 Matrícula: {matricula}")
+    if vin:
+        lineas.append(f"🔢 VIN: {vin}")
+    if procedencia:
+        etiqueta = PROVENANCE_LABELS.get(procedencia, f"Código {procedencia} (sin traducción conocida)")
+        lineas.append(f"📦 Procedencia: {etiqueta}")
+    # "GENERICO" y "0" no aportan nada (son el valor por defecto cuando no hay
+    # campaña comercial asociada), así que solo se muestra si hay un código real.
+    if campana and str(campana) not in ("GENERICO", "0"):
+        lineas.append(f"🏁 Campaña comercial: {campana}")
+    if actualizado:
+        lineas.append(f"🕒 Última actualización en Stellantis: {_formatear_fecha_actualizacion(actualizado)}")
+    if equipamiento and equipamiento != EQUIPAMIENTO_PLACEHOLDER:
+        if len(equipamiento) > MAX_LARGO_EQUIPAMIENTO:
+            equipamiento = equipamiento[:MAX_LARGO_EQUIPAMIENTO].rstrip() + "…"
+        lineas.append(f"🧰 Equipamiento: {equipamiento}")
+    # Códigos internos de fábrica: no son legibles por sí solos (Stellantis no
+    # publica el diccionario que los traduce), se incluyen solo como
+    # referencia por si algún día hace falta buscarlos o compararlos.
+    if codigo_config or codigo_opciones:
+        lineas.append("🔧 Códigos de fábrica (referencia interna, no legibles):")
+        if codigo_config:
+            lineas.append(f"   • Configuración: {codigo_config}")
+        if codigo_opciones:
+            lineas.append(f"   • Opciones: {codigo_opciones}")
+    lineas.append(f"🔗 {SITE_BASE}/vehiculos-ocasion")
+
+    return "\n".join(lineas)
 
 
 def main():
