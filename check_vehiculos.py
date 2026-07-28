@@ -1,12 +1,14 @@
 """
-Comprueba si han aparecido vehículos de ocasión nuevos en The Stellantis Club
-y envía una notificación por Telegram cuando detecta alguno.
+Comprueba si han aparecido vehículos de ocasión nuevos en The Stellantis Club,
+o si alguno ha cambiado su estado de reserva, y envía una notificación por
+Telegram en cada caso.
 
 Hace login automáticamente en cada ejecución (la sesión solo dura 2 horas,
 así que no tiene sentido guardar cookies: se generan nuevas cada vez).
 
 Ejecutado periódicamente por GitHub Actions (ver .github/workflows/check-vehiculos.yml).
-Guarda el estado (IDs de coches ya vistos) en data/ids_conocidos.json dentro del propio repo.
+Guarda el estado (IDs de coches vistos + si estaban reservados) en
+data/estado_vehiculos.json dentro del propio repo.
 """
 
 import json
@@ -38,13 +40,17 @@ LOGIN_SUBMIT_URL = f"{AUTH_BASE}/login/tsc/{LOGIN_ROUTE}/tsc-app-pro"
 FINAL_LOGIN_URL = f"{SITE_BASE}/login"
 
 API_URL = f"{SITE_BASE}/ajax/filter/CarsVoPrice"
-STATE_FILE = Path("data/ids_conocidos.json")
+STATE_FILE = Path("data/estado_vehiculos.json")
+# Nombre del fichero de estado antiguo (versión sin seguimiento de reservas),
+# por si el repo lo tiene de una ejecución anterior y hay que migrarlo.
+STATE_FILE_ANTIGUO = Path("data/ids_conocidos.json")
 
-# Payload "sin filtrar": trae todos los vehículos disponibles
+# Payload SIN filtrar por estado de reserva: trae TODOS los vehículos,
+# tanto disponibles (reserved=0) como ya reservados (reserved=1).
 PAYLOAD_COCHES = {
     "fuels": [],
     "carlines": [],
-    "reserved": ["0"],
+    "reserved": ["0", "1"],
     "colours": [],
     "engines": [],
     "carsKm": 999999,
@@ -190,17 +196,30 @@ def obtener_vehiculos(session: requests.Session):
     return resp.json()
 
 
-def cargar_ids_conocidos():
+def cargar_estado():
+    """
+    Devuelve un dict {id_coche: reservado (bool)}.
+    Si existe el fichero de estado nuevo, lo usa. Si solo existe el antiguo
+    (formato de lista simple, de antes de tener seguimiento de reservas),
+    lo migra asumiendo que todos estaban disponibles (no reservados).
+    """
     if STATE_FILE.exists():
         with open(STATE_FILE, "r", encoding="utf-8") as f:
-            return set(json.load(f))
-    return set()
+            return json.load(f)
+
+    if STATE_FILE_ANTIGUO.exists():
+        with open(STATE_FILE_ANTIGUO, "r", encoding="utf-8") as f:
+            ids_antiguos = json.load(f)
+        print(f"Migrando estado antiguo ({len(ids_antiguos)} coches) al nuevo formato.")
+        return {str(vid): False for vid in ids_antiguos}
+
+    return {}
 
 
-def guardar_ids_conocidos(ids):
+def guardar_estado(estado: dict):
     STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
     with open(STATE_FILE, "w", encoding="utf-8") as f:
-        json.dump(sorted(ids), f)
+        json.dump(estado, f, ensure_ascii=False, indent=0, sort_keys=True)
 
 
 def formatear_coche(coche: dict) -> str:
@@ -228,30 +247,58 @@ def main():
 
     session = hacer_login()
     vehiculos = obtener_vehiculos(session)
-    ids_conocidos = cargar_ids_conocidos()
+    estado_anterior = cargar_estado()
 
-    es_primera_ejecucion = len(ids_conocidos) == 0
+    es_primera_ejecucion = len(estado_anterior) == 0
 
     vehiculos_por_id = {str(v["id"]): v for v in vehiculos}
-    ids_actuales = set(vehiculos_por_id.keys())
-
-    nuevos = ids_actuales - ids_conocidos
+    estado_nuevo = {vid: bool(int(v.get("reserved", 0))) for vid, v in vehiculos_por_id.items()}
 
     if es_primera_ejecucion:
         # No notificamos en la primera ejecución (serían ~200 mensajes de golpe);
         # solo guardamos el estado inicial.
-        print(f"Primera ejecución: guardando {len(ids_actuales)} vehículos como estado inicial.")
-    elif nuevos:
-        print(f"Detectados {len(nuevos)} vehículos nuevos.")
-        for vid in nuevos:
+        print(f"Primera ejecución: guardando {len(estado_nuevo)} vehículos como estado inicial.")
+        guardar_estado(estado_nuevo)
+        return
+
+    ids_nuevos = set(estado_nuevo) - set(estado_anterior)
+    ids_comunes = set(estado_nuevo) & set(estado_anterior)
+
+    recien_reservados = [
+        vid for vid in ids_comunes if estado_nuevo[vid] and not estado_anterior[vid]
+    ]
+    recien_liberados = [
+        vid for vid in ids_comunes if not estado_nuevo[vid] and estado_anterior[vid]
+    ]
+
+    if ids_nuevos:
+        print(f"Detectados {len(ids_nuevos)} vehículos nuevos.")
+        for vid in ids_nuevos:
             mensaje = "🆕 <b>Nuevo vehículo de ocasión disponible</b>\n\n" + formatear_coche(
                 vehiculos_por_id[vid]
             )
             enviar_telegram(mensaje)
-    else:
+
+    if recien_reservados:
+        print(f"Detectados {len(recien_reservados)} vehículos recién reservados.")
+        for vid in recien_reservados:
+            mensaje = "🔒 <b>Vehículo reservado (ya no disponible)</b>\n\n" + formatear_coche(
+                vehiculos_por_id[vid]
+            )
+            enviar_telegram(mensaje)
+
+    if recien_liberados:
+        print(f"Detectados {len(recien_liberados)} vehículos que han vuelto a estar disponibles.")
+        for vid in recien_liberados:
+            mensaje = "🔓 <b>Vehículo disponible de nuevo (reserva cancelada)</b>\n\n" + formatear_coche(
+                vehiculos_por_id[vid]
+            )
+            enviar_telegram(mensaje)
+
+    if not (ids_nuevos or recien_reservados or recien_liberados):
         print("Sin novedades.")
 
-    guardar_ids_conocidos(ids_actuales)
+    guardar_estado(estado_nuevo)
 
 
 if __name__ == "__main__":
