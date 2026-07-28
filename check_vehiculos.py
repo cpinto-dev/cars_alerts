@@ -317,6 +317,18 @@ def formatear_coche(coche: dict) -> str:
     return "\n".join(lineas)
 
 
+def calcular_resumen_stock(estado: dict) -> str:
+    """
+    Recibe el estado {id_coche: reservado (bool)} y devuelve una línea de
+    resumen con cuántos vehículos hay disponibles y reservados en total,
+    para añadir al final de cada notificación.
+    """
+    total = len(estado)
+    reservados = sum(1 for r in estado.values() if r)
+    disponibles = total - reservados
+    return f"📊 Disponibles ahora: {disponibles}   🔒 Reservados ahora: {reservados}   (total: {total})"
+
+
 def main():
     check_config()
 
@@ -346,27 +358,37 @@ def main():
         vid for vid in ids_comunes if not estado_nuevo[vid] and estado_anterior[vid]
     ]
 
+    # Se calcula una sola vez por ejecución: el resumen refleja el estado
+    # actual completo (todos los vehículos), no solo los que cambiaron.
+    resumen_stock = calcular_resumen_stock(estado_nuevo)
+
     if ids_nuevos:
         print(f"Detectados {len(ids_nuevos)} vehículos nuevos.")
         for vid in ids_nuevos:
-            mensaje = "🆕 <b>Nuevo vehículo de ocasión disponible</b>\n\n" + formatear_coche(
-                vehiculos_por_id[vid]
+            mensaje = (
+                "🆕 <b>Nuevo vehículo de ocasión disponible</b>\n\n"
+                + formatear_coche(vehiculos_por_id[vid])
+                + f"\n\n{resumen_stock}"
             )
             enviar_telegram(mensaje)
 
     if recien_reservados:
         print(f"Detectados {len(recien_reservados)} vehículos recién reservados.")
         for vid in recien_reservados:
-            mensaje = "🔒 <b>Vehículo reservado (ya no disponible)</b>\n\n" + formatear_coche(
-                vehiculos_por_id[vid]
+            mensaje = (
+                "🔒 <b>Vehículo reservado (ya no disponible)</b>\n\n"
+                + formatear_coche(vehiculos_por_id[vid])
+                + f"\n\n{resumen_stock}"
             )
             enviar_telegram(mensaje)
 
     if recien_liberados:
         print(f"Detectados {len(recien_liberados)} vehículos que han vuelto a estar disponibles.")
         for vid in recien_liberados:
-            mensaje = "🔓 <b>Vehículo disponible de nuevo (reserva cancelada)</b>\n\n" + formatear_coche(
-                vehiculos_por_id[vid]
+            mensaje = (
+                "🔓 <b>Vehículo disponible de nuevo (reserva cancelada)</b>\n\n"
+                + formatear_coche(vehiculos_por_id[vid])
+                + f"\n\n{resumen_stock}"
             )
             enviar_telegram(mensaje)
 
