@@ -229,20 +229,28 @@ CAMPOS_SEGUIMIENTO = {
 }
 
 
+# Campos que guardamos íntegros en el snapshot: los que usa CAMPOS_SEGUIMIENTO
+# (para detectar cambios) + los que usa formatear_coche() (para poder mostrar
+# el coche completo si más adelante desaparece del feed, ver ids_eliminados
+# en main()).
+CAMPOS_PARA_SNAPSHOT = [
+    "id", "brand", "name", "carline", "price_final", "car_km", "fuel", "engine",
+    "colour", "year", "plate", "plate_date", "vin", "equipment_new",
+    "provenance", "campa", "code_campa", "updated_at", "code", "code_options",
+]
+
+
 def snapshot_coche(v: dict) -> dict:
     """Extrae de un vehículo (tal cual viene de la API) los campos que
-    queremos guardar en el estado para poder compararlos en la siguiente
-    ejecución."""
-    return {
-        "reserved": bool(int(v.get("reserved", 0))),
-        "updated_at": v.get("updated_at"),
-        "price_final": v.get("price_final"),
-        "car_km": v.get("car_km"),
-        "plate_date": v.get("plate_date"),
-        "colour": v.get("colour"),
-        "provenance": v.get("provenance"),
-        "campa": v.get("campa") or v.get("code_campa"),
-    }
+    queremos guardar en el estado: tanto para comparar cambios como para
+    poder describir el coche por completo más adelante (p.ej. si se elimina
+    del feed)."""
+    snap = {campo: v.get(campo) for campo in CAMPOS_PARA_SNAPSHOT}
+    # Normalizamos "campa" igual que hace formatear_coche (campa o code_campa,
+    # lo que haya) para que la comparación de cambios sea consistente.
+    snap["campa"] = v.get("campa") or v.get("code_campa")
+    snap["_reservado"] = bool(int(v.get("reserved", 0)))
+    return snap
 
 
 def cargar_estado():
@@ -265,17 +273,21 @@ def cargar_estado():
         migrado = False
         for vid, val in list(estado.items()):
             if isinstance(val, bool):
-                estado[vid] = {"reserved": val}
+                estado[vid] = {"_reservado": val}
+                migrado = True
+            elif isinstance(val, dict) and "reserved" in val and "_reservado" not in val:
+                # Snapshot de una versión intermedia que usaba la clave "reserved".
+                val["_reservado"] = val.pop("reserved")
                 migrado = True
         if migrado:
-            print("Migrando estado del formato 'id -> reservado' al nuevo formato con snapshot.")
+            print("Migrando estado a un formato de snapshot anterior.")
         return estado
 
     if STATE_FILE_ANTIGUO.exists():
         with open(STATE_FILE_ANTIGUO, "r", encoding="utf-8") as f:
             ids_antiguos = json.load(f)
         print(f"Migrando estado antiguo ({len(ids_antiguos)} coches) al nuevo formato.")
-        return {str(vid): {"reserved": False} for vid in ids_antiguos}
+        return {str(vid): {"_reservado": False} for vid in ids_antiguos}
 
     return {}
 
@@ -420,7 +432,7 @@ def calcular_resumen_stock(estado: dict) -> str:
     final de cada notificación.
     """
     total = len(estado)
-    reservados = sum(1 for s in estado.values() if s.get("reserved"))
+    reservados = sum(1 for s in estado.values() if s.get("_reservado"))
     disponibles = total - reservados
     return f"📊 Disponibles ahora: {disponibles}   🔒 Reservados ahora: {reservados}   (total: {total})"
 
@@ -551,14 +563,18 @@ def main():
 
     ids_nuevos = set(estado_nuevo) - set(estado_anterior)
     ids_comunes = set(estado_nuevo) & set(estado_anterior)
+    # Coches que estaban en el estado anterior pero ya no vienen en la
+    # respuesta de la API: Stellantis los ha quitado del feed (vendido fuera
+    # de este canal, dado de baja, etc.), no es lo mismo que "reservado".
+    ids_eliminados = set(estado_anterior) - set(estado_nuevo)
 
     recien_reservados = [
         vid for vid in ids_comunes
-        if estado_nuevo[vid].get("reserved") and not estado_anterior[vid].get("reserved")
+        if estado_nuevo[vid].get("_reservado") and not estado_anterior[vid].get("_reservado")
     ]
     recien_liberados = [
         vid for vid in ids_comunes
-        if not estado_nuevo[vid].get("reserved") and estado_anterior[vid].get("reserved")
+        if not estado_nuevo[vid].get("_reservado") and estado_anterior[vid].get("_reservado")
     ]
 
     # Coches existentes cuya "Última actualización en Stellantis" ha
@@ -627,7 +643,22 @@ def main():
             )
             enviar_telegram(mensaje)
 
-    if not (ids_nuevos or recien_reservados or recien_liberados or cambios_por_id):
+    if ids_eliminados:
+        print(f"Detectados {len(ids_eliminados)} vehículos eliminados del feed de Stellantis.")
+        for vid in ids_eliminados:
+            snapshot_anterior = estado_anterior[vid]
+            estaba_reservado = snapshot_anterior.get("_reservado", False)
+            estado_previo_txt = "🔒 Estaba reservado" if estaba_reservado else "✅ Estaba disponible"
+            mensaje = (
+                "🗑️ <b>Vehículo eliminado del feed de Stellantis</b>\n"
+                "(ya no aparece en la web, por venta fuera de este canal, baja, etc.)\n\n"
+                + formatear_coche(snapshot_anterior)
+                + f"\n\n{estado_previo_txt} justo antes de desaparecer."
+                + f"\n\n{resumen_stock}"
+            )
+            enviar_telegram(mensaje)
+
+    if not (ids_nuevos or recien_reservados or recien_liberados or cambios_por_id or ids_eliminados):
         print("Sin novedades.")
 
     guardar_estado(estado_nuevo)
