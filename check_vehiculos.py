@@ -1,14 +1,21 @@
 """
 Comprueba si han aparecido vehículos de ocasión nuevos en The Stellantis Club,
-o si alguno ha cambiado su estado de reserva, y envía una notificación por
-Telegram en cada caso.
+si alguno ha cambiado su estado de reserva, o si Stellantis ha modificado algún
+campo relevante de un coche existente (precio, km, matriculación, color,
+procedencia, campaña), y envía una notificación por Telegram en cada caso.
+
+También atiende el comando de Telegram "/ultimos [N]", que responde con los N
+vehículos cuya "Última actualización en Stellantis" (campo updated_at) sea más
+reciente. Como no hay servidor permanente, la respuesta llega con el retraso de
+la siguiente ejecución programada (hasta ~20 min), reutilizando el propio cron:
+en cada ejecución se consulta Telegram (getUpdates) por si hay comandos nuevos.
 
 Hace login automáticamente en cada ejecución (la sesión solo dura 2 horas,
 así que no tiene sentido guardar cookies: se generan nuevas cada vez).
 
 Ejecutado periódicamente por GitHub Actions (ver .github/workflows/check-vehiculos.yml).
-Guarda el estado (IDs de coches vistos + si estaban reservados) en
-data/estado_vehiculos.json dentro del propio repo.
+Guarda el estado (snapshot de cada coche) en data/estado_vehiculos.json y el
+offset de Telegram en data/telegram_offset.json, dentro del propio repo.
 """
 
 import json
@@ -16,7 +23,7 @@ import os
 import re
 import sys
 import urllib.parse
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -46,6 +53,7 @@ STATE_FILE = Path("data/estado_vehiculos.json")
 # Nombre del fichero de estado antiguo (versión sin seguimiento de reservas),
 # por si el repo lo tiene de una ejecución anterior y hay que migrarlo.
 STATE_FILE_ANTIGUO = Path("data/ids_conocidos.json")
+TELEGRAM_OFFSET_FILE = Path("data/telegram_offset.json")
 
 # Payload SIN filtrar por estado de reserva: trae TODOS los vehículos,
 # tanto disponibles (reserved=0) como ya reservados (reserved=1).
@@ -67,6 +75,13 @@ USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
 )
+
+# Comando de Telegram que devuelve los N coches más recientemente actualizados
+# por Stellantis. Por defecto N=5 si no se indica número; máximo 30 (para no
+# acercarnos al límite de 4096 caracteres de un mensaje de Telegram).
+COMANDO_ULTIMOS = "/ultimos"
+ULTIMOS_POR_DEFECTO = 5
+ULTIMOS_MAXIMO = 30
 
 
 def check_config():
@@ -198,22 +213,69 @@ def obtener_vehiculos(session: requests.Session):
     return resp.json()
 
 
+# ---------------------------------------------------------------------------
+# Estado: snapshot por coche (para detectar altas, reservas y cambios de campo)
+# ---------------------------------------------------------------------------
+
+# Campos que vigilamos para avisar de cambios cuando varía "updated_at" de un
+# coche que ya conocíamos. clave -> (etiqueta para el mensaje, formateador).
+CAMPOS_SEGUIMIENTO = {
+    "price_final": ("💰 Precio", lambda v: f"{v} €" if v not in (None, "") else "?"),
+    "car_km": ("🛣️ Kilómetros", lambda v: f"{v} km" if v not in (None, "") else "?"),
+    "plate_date": ("📆 Matriculación", lambda v: v if v not in (None, "") else "?"),
+    "colour": ("🎨 Color", lambda v: v if v not in (None, "") else "?"),
+    "provenance": ("📦 Procedencia", lambda v: v if v not in (None, "") else "?"),
+    "campa": ("🏁 Campaña comercial", lambda v: v if v not in (None, "") else "?"),
+}
+
+
+def snapshot_coche(v: dict) -> dict:
+    """Extrae de un vehículo (tal cual viene de la API) los campos que
+    queremos guardar en el estado para poder compararlos en la siguiente
+    ejecución."""
+    return {
+        "reserved": bool(int(v.get("reserved", 0))),
+        "updated_at": v.get("updated_at"),
+        "price_final": v.get("price_final"),
+        "car_km": v.get("car_km"),
+        "plate_date": v.get("plate_date"),
+        "colour": v.get("colour"),
+        "provenance": v.get("provenance"),
+        "campa": v.get("campa") or v.get("code_campa"),
+    }
+
+
 def cargar_estado():
     """
-    Devuelve un dict {id_coche: reservado (bool)}.
-    Si existe el fichero de estado nuevo, lo usa. Si solo existe el antiguo
-    (formato de lista simple, de antes de tener seguimiento de reservas),
-    lo migra asumiendo que todos estaban disponibles (no reservados).
+    Devuelve un dict {id_coche: snapshot}. Si existe el fichero de estado con
+    el formato antiguo (solo reservado, o solo lista de ids), lo migra:
+    - Formato "lista simple" (ids_conocidos.json): todos como no reservados,
+      sin más datos (no se comparan campos hasta la siguiente ejecución).
+    - Formato "id -> bool" (versión con solo reservas): se conserva el
+      booleano de reservado, sin más datos.
+    En ambos casos, al no tener las claves de CAMPOS_SEGUIMIENTO, la primera
+    comparación tras la migración no generará avisos de cambio de campo (no
+    hay nada fiable con lo que comparar); a partir de esa ejecución sí.
     """
     if STATE_FILE.exists():
         with open(STATE_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
+            estado = json.load(f)
+        # Migración interna: si algún valor es un bool suelto (formato
+        # intermedio "id -> reservado"), lo convertimos a snapshot parcial.
+        migrado = False
+        for vid, val in list(estado.items()):
+            if isinstance(val, bool):
+                estado[vid] = {"reserved": val}
+                migrado = True
+        if migrado:
+            print("Migrando estado del formato 'id -> reservado' al nuevo formato con snapshot.")
+        return estado
 
     if STATE_FILE_ANTIGUO.exists():
         with open(STATE_FILE_ANTIGUO, "r", encoding="utf-8") as f:
             ids_antiguos = json.load(f)
         print(f"Migrando estado antiguo ({len(ids_antiguos)} coches) al nuevo formato.")
-        return {str(vid): False for vid in ids_antiguos}
+        return {str(vid): {"reserved": False} for vid in ids_antiguos}
 
     return {}
 
@@ -223,6 +285,28 @@ def guardar_estado(estado: dict):
     with open(STATE_FILE, "w", encoding="utf-8") as f:
         json.dump(estado, f, ensure_ascii=False, indent=0, sort_keys=True)
 
+
+def detectar_cambios_campos(antiguo: dict, nuevo: dict) -> list:
+    """
+    Compara el snapshot antiguo y el nuevo de un mismo coche y devuelve una
+    lista de líneas describiendo qué campos vigilados han cambiado. Si un
+    campo no estaba presente en el snapshot antiguo (p.ej. venía de una
+    migración), no se compara ese campo (no hay nada fiable con qué comparar).
+    """
+    cambios = []
+    for campo, (etiqueta, formatear) in CAMPOS_SEGUIMIENTO.items():
+        if campo not in antiguo:
+            continue
+        v_antiguo = antiguo.get(campo)
+        v_nuevo = nuevo.get(campo)
+        if v_antiguo != v_nuevo:
+            cambios.append(f"{etiqueta}: {formatear(v_antiguo)} → {formatear(v_nuevo)}")
+    return cambios
+
+
+# ---------------------------------------------------------------------------
+# Mensajes
+# ---------------------------------------------------------------------------
 
 # Texto que Stellantis pone cuando no hay equipamiento real cargado para ese
 # coche en concreto; si equipment_new es justo esto, no aporta nada y no lo
@@ -253,6 +337,18 @@ def _formatear_fecha_actualizacion(iso_timestamp: str) -> str:
         return dt_madrid.strftime("%d/%m/%Y %H:%M")
     except (ValueError, TypeError):
         return iso_timestamp
+
+
+def _parsear_updated_at(iso_timestamp):
+    """Convierte 'updated_at' a datetime para poder ordenar. Si falta o es
+    inválido, devuelve la fecha mínima posible para que quede al final al
+    ordenar de más reciente a más antiguo."""
+    if not iso_timestamp:
+        return datetime.min.replace(tzinfo=timezone.utc)
+    try:
+        return datetime.fromisoformat(iso_timestamp.replace("Z", "+00:00"))
+    except (ValueError, TypeError):
+        return datetime.min.replace(tzinfo=timezone.utc)
 
 
 def formatear_coche(coche: dict) -> str:
@@ -319,14 +415,115 @@ def formatear_coche(coche: dict) -> str:
 
 def calcular_resumen_stock(estado: dict) -> str:
     """
-    Recibe el estado {id_coche: reservado (bool)} y devuelve una línea de
-    resumen con cuántos vehículos hay disponibles y reservados en total,
-    para añadir al final de cada notificación.
+    Recibe el estado {id_coche: snapshot} y devuelve una línea de resumen con
+    cuántos vehículos hay disponibles y reservados en total, para añadir al
+    final de cada notificación.
     """
     total = len(estado)
-    reservados = sum(1 for r in estado.values() if r)
+    reservados = sum(1 for s in estado.values() if s.get("reserved"))
     disponibles = total - reservados
     return f"📊 Disponibles ahora: {disponibles}   🔒 Reservados ahora: {reservados}   (total: {total})"
+
+
+# ---------------------------------------------------------------------------
+# Comando de Telegram: /ultimos [N]
+# ---------------------------------------------------------------------------
+
+def cargar_offset_telegram() -> int:
+    if TELEGRAM_OFFSET_FILE.exists():
+        with open(TELEGRAM_OFFSET_FILE, "r", encoding="utf-8") as f:
+            return json.load(f).get("offset", 0)
+    return 0
+
+
+def guardar_offset_telegram(offset: int):
+    TELEGRAM_OFFSET_FILE.parent.mkdir(parents=True, exist_ok=True)
+    with open(TELEGRAM_OFFSET_FILE, "w", encoding="utf-8") as f:
+        json.dump({"offset": offset}, f)
+
+
+def obtener_actualizaciones_telegram(offset: int):
+    """Consulta corta (no long-polling) a getUpdates: solo recoge los mensajes
+    pendientes desde el último offset guardado, no espera a que lleguen nuevos."""
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getUpdates"
+    try:
+        resp = requests.get(
+            url,
+            params={"offset": offset, "timeout": 0, "allowed_updates": json.dumps(["message"])},
+            timeout=15,
+        )
+        resp.raise_for_status()
+        return resp.json().get("result", [])
+    except requests.RequestException as e:
+        print(f"Error consultando getUpdates de Telegram: {e}", file=sys.stderr)
+        return []
+
+
+def construir_resumen_ultimos(vehiculos_por_id: dict, n: int) -> str:
+    ordenados = sorted(
+        vehiculos_por_id.values(),
+        key=lambda v: _parsear_updated_at(v.get("updated_at")),
+        reverse=True,
+    )
+    top = ordenados[:n]
+
+    lineas = [f"🕒 <b>Últimos {len(top)} vehículos actualizados por Stellantis</b>\n"]
+    for v in top:
+        marca = v.get("brand", "?")
+        modelo = v.get("name", "?")
+        precio = v.get("price_final", "?")
+        km = v.get("car_km", "?")
+        fecha = _formatear_fecha_actualizacion(v.get("updated_at")) if v.get("updated_at") else "?"
+        reservado = " 🔒" if bool(int(v.get("reserved", 0))) else ""
+        lineas.append(f"• <b>{marca} {modelo}</b> — {precio} € — {km} km — {fecha}{reservado}")
+    return "\n".join(lineas)
+
+
+def procesar_comandos_telegram(vehiculos_por_id: dict):
+    """
+    Revisa si hay mensajes nuevos en el chat de Telegram desde la última
+    ejecución y responde a los comandos "/ultimos [N]" que encuentre. Como
+    esto se ejecuta cada ~20 minutos (no hay servidor permanente escuchando),
+    la respuesta llega con ese retraso.
+    """
+    offset = cargar_offset_telegram()
+    actualizaciones = obtener_actualizaciones_telegram(offset)
+
+    if not actualizaciones:
+        return
+
+    max_update_id = offset
+    for update in actualizaciones:
+        max_update_id = max(max_update_id, update.get("update_id", 0) + 1)
+
+        mensaje = update.get("message") or {}
+        chat_id = str(mensaje.get("chat", {}).get("id", ""))
+        texto = (mensaje.get("text") or "").strip()
+
+        # Solo atendemos mensajes del chat configurado, y solo si empiezan
+        # por el comando (ignorando el "@nombre_del_bot" que Telegram añade
+        # a veces en grupos).
+        if chat_id != str(TELEGRAM_CHAT_ID) or not texto:
+            continue
+
+        partes = texto.split()
+        comando = partes[0].split("@")[0].lower()
+        if comando != COMANDO_ULTIMOS:
+            continue
+
+        n = ULTIMOS_POR_DEFECTO
+        if len(partes) > 1 and partes[1].isdigit():
+            n = int(partes[1])
+        n_solicitado = n
+        n = max(1, min(n, ULTIMOS_MAXIMO))
+
+        print(f"Comando recibido: '{texto}' -> respondiendo con los últimos {n} coches.")
+        respuesta = construir_resumen_ultimos(vehiculos_por_id, n)
+        if n_solicitado > ULTIMOS_MAXIMO:
+            respuesta += f"\n\n(Se ha limitado a {ULTIMOS_MAXIMO} para no superar el límite de Telegram.)"
+        enviar_telegram(respuesta)
+
+    guardar_offset_telegram(max_update_id)
 
 
 def main():
@@ -339,11 +536,15 @@ def main():
     es_primera_ejecucion = len(estado_anterior) == 0
 
     vehiculos_por_id = {str(v["id"]): v for v in vehiculos}
-    estado_nuevo = {vid: bool(int(v.get("reserved", 0))) for vid, v in vehiculos_por_id.items()}
+    estado_nuevo = {vid: snapshot_coche(v) for vid, v in vehiculos_por_id.items()}
+
+    # El comando /ultimos se atiende siempre (incluso en la primera
+    # ejecución), usando los datos recién descargados de la API.
+    procesar_comandos_telegram(vehiculos_por_id)
 
     if es_primera_ejecucion:
-        # No notificamos en la primera ejecución (serían ~200 mensajes de golpe);
-        # solo guardamos el estado inicial.
+        # No notificamos altas/cambios en la primera ejecución (serían ~200
+        # mensajes de golpe); solo guardamos el estado inicial.
         print(f"Primera ejecución: guardando {len(estado_nuevo)} vehículos como estado inicial.")
         guardar_estado(estado_nuevo)
         return
@@ -352,11 +553,26 @@ def main():
     ids_comunes = set(estado_nuevo) & set(estado_anterior)
 
     recien_reservados = [
-        vid for vid in ids_comunes if estado_nuevo[vid] and not estado_anterior[vid]
+        vid for vid in ids_comunes
+        if estado_nuevo[vid].get("reserved") and not estado_anterior[vid].get("reserved")
     ]
     recien_liberados = [
-        vid for vid in ids_comunes if not estado_nuevo[vid] and estado_anterior[vid]
+        vid for vid in ids_comunes
+        if not estado_nuevo[vid].get("reserved") and estado_anterior[vid].get("reserved")
     ]
+
+    # Coches existentes cuya "Última actualización en Stellantis" ha
+    # cambiado: comprobamos qué campo concreto ha variado (precio, km, etc.).
+    cambios_por_id = {}
+    for vid in ids_comunes:
+        antiguo = estado_anterior[vid]
+        nuevo = estado_nuevo[vid]
+        if "updated_at" not in antiguo:
+            continue  # snapshot antiguo migrado sin datos fiables, no comparamos
+        if antiguo.get("updated_at") == nuevo.get("updated_at"):
+            continue  # Stellantis no ha tocado este coche
+        cambios = detectar_cambios_campos(antiguo, nuevo)
+        cambios_por_id[vid] = cambios
 
     # Se calcula una sola vez por ejecución: el resumen refleja el estado
     # actual completo (todos los vehículos), no solo los que cambiaron.
@@ -392,7 +608,26 @@ def main():
             )
             enviar_telegram(mensaje)
 
-    if not (ids_nuevos or recien_reservados or recien_liberados):
+    if cambios_por_id:
+        print(f"Detectados {len(cambios_por_id)} vehículos con campos actualizados por Stellantis.")
+        for vid, cambios in cambios_por_id.items():
+            if cambios:
+                bloque_cambios = "📝 <b>Cambios:</b>\n" + "\n".join(f"• {c}" for c in cambios)
+            else:
+                bloque_cambios = (
+                    "📝 Stellantis ha actualizado este coche, pero no en los campos "
+                    "monitorizados (precio, km, matriculación, color, procedencia, campaña). "
+                    "Puede haber cambiado algún otro dato (ej. equipamiento)."
+                )
+            mensaje = (
+                "✏️ <b>Cambio detectado en un vehículo</b>\n\n"
+                + formatear_coche(vehiculos_por_id[vid])
+                + f"\n\n{bloque_cambios}"
+                + f"\n\n{resumen_stock}"
+            )
+            enviar_telegram(mensaje)
+
+    if not (ids_nuevos or recien_reservados or recien_liberados or cambios_por_id):
         print("Sin novedades.")
 
     guardar_estado(estado_nuevo)
