@@ -2622,7 +2622,7 @@
 "year": "2024"
 },
 "201": {
-"_reservado": false,
+"_reservado": true,
 "brand": "AR",
 "campa": "GENERICO",
 "car_km": "17.088",
@@ -2640,7 +2640,7 @@
 "plate_date": "03/12/2024",
 "price_final": "20.500",
 "provenance": "5",
-"updated_at": "2026-05-29T09:05:27.000000Z",
+"updated_at": "2026-08-20T17:00:45.000000Z",
 "vin": "ZAA5AVAT2RJA05633",
 "year": "2024"
 },
