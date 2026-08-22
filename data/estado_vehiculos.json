@@ -3358,7 +3358,7 @@
 "year": "2024"
 },
 "230": {
-"_reservado": false,
+"_reservado": true,
 "brand": "OV",
 "campa": "GENERICO",
 "car_km": "7.203",
@@ -3376,7 +3376,7 @@
 "plate_date": "25/10/2024",
 "price_final": "25.000",
 "provenance": "5",
-"updated_at": "2026-05-29T09:05:27.000000Z",
+"updated_at": "2026-08-22T16:07:27.000000Z",
 "vin": "VXKKCZKZ3R6038667",
 "year": "2024"
 },
