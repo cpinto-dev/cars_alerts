@@ -4692,7 +4692,7 @@
 "year": "2023"
 },
 "67": {
-"_reservado": false,
+"_reservado": true,
 "brand": "JE",
 "campa": "0",
 "car_km": "12.000",
@@ -4710,7 +4710,7 @@
 "plate_date": "29/04/2024",
 "price_final": "49.990",
 "provenance": "Campo",
-"updated_at": "2026-05-29T09:05:27.000000Z",
+"updated_at": "2026-08-23T12:55:41.000000Z",
 "vin": "1C4RJYE66P8836830",
 "year": "2024"
 },
