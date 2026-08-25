@@ -5221,7 +5221,7 @@
 "year": "2024"
 },
 "88": {
-"_reservado": false,
+"_reservado": true,
 "brand": "AC",
 "campa": "GENERICO",
 "car_km": "969",
@@ -5239,7 +5239,7 @@
 "plate_date": "29/08/2024",
 "price_final": "14.000",
 "provenance": "5",
-"updated_at": "2026-07-21T14:58:56.000000Z",
+"updated_at": "2026-08-25T14:56:17.000000Z",
 "vin": "VR7CCHPV9RT118769",
 "year": "2024"
 },
