@@ -4600,7 +4600,7 @@
 "year": "2024"
 },
 "63": {
-"_reservado": false,
+"_reservado": true,
 "brand": "JE",
 "campa": "0",
 "car_km": "20.346",
@@ -4618,12 +4618,12 @@
 "plate_date": "29/04/2024",
 "price_final": "17.990",
 "provenance": "Campo",
-"updated_at": "2026-07-21T14:48:03.000000Z",
+"updated_at": "2026-08-26T11:51:06.000000Z",
 "vin": "ZAC5JACT1RJK75947",
 "year": "2024"
 },
 "64": {
-"_reservado": false,
+"_reservado": true,
 "brand": "JE",
 "campa": "0",
 "car_km": "22.980",
@@ -4641,7 +4641,7 @@
 "plate_date": "29/04/2024",
 "price_final": "17.990",
 "provenance": "Campo",
-"updated_at": "2026-07-21T14:57:16.000000Z",
+"updated_at": "2026-08-26T11:51:09.000000Z",
 "vin": "ZAC5JACT6RJK75071",
 "year": "2024"
 },
