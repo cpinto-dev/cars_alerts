@@ -4071,7 +4071,7 @@
 "year": "2024"
 },
 "42": {
-"_reservado": false,
+"_reservado": true,
 "brand": "AC",
 "campa": "037204L01",
 "car_km": "40.352",
@@ -4089,7 +4089,7 @@
 "plate_date": "26/03/2024",
 "price_final": "21.990",
 "provenance": "Campo",
-"updated_at": "2026-05-29T09:05:27.000000Z",
+"updated_at": "2026-08-27T21:54:35.000000Z",
 "vin": "VR7A4DGLSPL059214",
 "year": "2024"
 },
