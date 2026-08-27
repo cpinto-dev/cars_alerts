@@ -4623,7 +4623,7 @@
 "year": "2024"
 },
 "64": {
-"_reservado": false,
+"_reservado": true,
 "brand": "JE",
 "campa": "0",
 "car_km": "22.980",
@@ -4641,7 +4641,7 @@
 "plate_date": "29/04/2024",
 "price_final": "17.990",
 "provenance": "Campo",
-"updated_at": "2026-08-26T14:20:55.000000Z",
+"updated_at": "2026-08-27T18:34:17.000000Z",
 "vin": "ZAC5JACT6RJK75071",
 "year": "2024"
 },
