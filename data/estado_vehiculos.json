@@ -4554,7 +4554,7 @@
 "year": "2024"
 },
 "61": {
-"_reservado": false,
+"_reservado": true,
 "brand": "OV",
 "campa": "0",
 "car_km": "12.781",
@@ -4572,7 +4572,7 @@
 "plate_date": "26/04/2024",
 "price_final": "26.990",
 "provenance": "Campo",
-"updated_at": "2026-07-21T15:00:29.000000Z",
+"updated_at": "2026-09-04T17:28:13.000000Z",
 "vin": "W0VZ45GB2P6001373",
 "year": "2024"
 },
