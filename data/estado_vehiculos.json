@@ -1932,7 +1932,7 @@
 "year": "2024"
 },
 "175": {
-"_reservado": false,
+"_reservado": true,
 "brand": "AP",
 "campa": "GENERICO",
 "car_km": "26.247",
@@ -1950,7 +1950,7 @@
 "plate_date": "19/02/2025",
 "price_final": "30.000",
 "provenance": "5",
-"updated_at": "2026-05-29T09:05:27.000000Z",
+"updated_at": "2026-09-25T08:13:15.000000Z",
 "vin": "VR3KCZKZ2RS170876",
 "year": "2025"
 },
