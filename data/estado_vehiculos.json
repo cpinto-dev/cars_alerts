@@ -1196,7 +1196,7 @@
 "year": "2025"
 },
 "146": {
-"_reservado": false,
+"_reservado": true,
 "brand": "AC",
 "campa": "GENERICO",
 "car_km": "7.471",
@@ -1214,7 +1214,7 @@
 "plate_date": "27/12/2024",
 "price_final": "24.500",
 "provenance": "5",
-"updated_at": "2026-05-29T09:05:27.000000Z",
+"updated_at": "2026-10-10T08:18:40.000000Z",
 "vin": "VR7A4DGL3RL036113",
 "year": "2024"
 },
