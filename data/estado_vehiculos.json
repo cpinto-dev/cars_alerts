@@ -1909,7 +1909,7 @@
 "year": "2025"
 },
 "85": {
-"_reservado": false,
+"_reservado": true,
 "brand": "AP",
 "campa": "sin dato",
 "car_km": "32.483",
@@ -1927,7 +1927,7 @@
 "plate_date": "27/05/2024",
 "price_final": "16.900",
 "provenance": "5",
-"updated_at": "2026-10-20T09:26:56.000000Z",
+"updated_at": "2026-10-20T13:03:01.000000Z",
 "vin": "VF3MRHPY6RS052368",
 "year": "2024"
 },
