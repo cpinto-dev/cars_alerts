@@ -1,6 +1,6 @@
 {
 "1": {
-"_reservado": false,
+"_reservado": true,
 "brand": "AR",
 "campa": "sin dato",
 "car_km": "21.469",
@@ -18,7 +18,7 @@
 "plate_date": "27/02/2024",
 "price_final": "22.950",
 "provenance": "Campo",
-"updated_at": "2026-10-20T09:26:56.000000Z",
+"updated_at": "2026-10-20T10:05:42.000000Z",
 "vin": "ZARPATAW4R3072417",
 "year": "2024"
 },
