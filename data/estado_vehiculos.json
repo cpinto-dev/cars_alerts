@@ -207,7 +207,7 @@
 "year": "2023"
 },
 "18": {
-"_reservado": false,
+"_reservado": true,
 "brand": "AC",
 "campa": "sin dato",
 "car_km": "43.492",
@@ -225,7 +225,7 @@
 "plate_date": "21/06/2023",
 "price_final": "18.800",
 "provenance": "Campo",
-"updated_at": "2026-10-20T09:26:56.000000Z",
+"updated_at": "2026-10-20T18:11:07.000000Z",
 "vin": "VR7A4DGZSPL038078",
 "year": "2023"
 },
@@ -414,7 +414,7 @@
 "year": "2023"
 },
 "26": {
-"_reservado": false,
+"_reservado": true,
 "brand": "AC",
 "campa": "sin dato",
 "car_km": "31.643",
@@ -432,7 +432,7 @@
 "plate_date": "29/09/2023",
 "price_final": "19.850",
 "provenance": "Campo",
-"updated_at": "2026-10-20T09:26:56.000000Z",
+"updated_at": "2026-10-20T18:09:51.000000Z",
 "vin": "VR7NDDGXPP4803615",
 "year": "2023"
 },
