@@ -345,7 +345,7 @@
 "year": "2024"
 },
 "23": {
-"_reservado": false,
+"_reservado": true,
 "brand": "AC",
 "campa": "sin dato",
 "car_km": "20.602",
@@ -363,7 +363,7 @@
 "plate_date": "30/04/2024",
 "price_final": "15.350",
 "provenance": "Campo",
-"updated_at": "2026-10-20T09:26:56.000000Z",
+"updated_at": "2026-10-21T13:26:50.000000Z",
 "vin": "VR7ARHNS0RL020955",
 "year": "2024"
 },
@@ -1012,7 +1012,7 @@
 "year": "2025"
 },
 "5": {
-"_reservado": false,
+"_reservado": true,
 "brand": "AC",
 "campa": "sin dato",
 "car_km": "33.829",
@@ -1030,7 +1030,7 @@
 "plate_date": "18/07/2024",
 "price_final": "16.950",
 "provenance": "Campo",
-"updated_at": "2026-10-20T09:26:56.000000Z",
+"updated_at": "2026-10-21T13:21:53.000000Z",
 "vin": "VR7BAHPY5RE047084",
 "year": "2024"
 },
@@ -1863,7 +1863,7 @@
 "year": "2025"
 },
 "83": {
-"_reservado": false,
+"_reservado": true,
 "brand": "AP",
 "campa": "sin dato",
 "car_km": "17.208",
@@ -1881,7 +1881,7 @@
 "plate_date": "27/03/2025",
 "price_final": "16.400",
 "provenance": "5",
-"updated_at": "2026-10-20T09:26:56.000000Z",
+"updated_at": "2026-10-21T13:22:15.000000Z",
 "vin": "VR3UPHPX4S4073106",
 "year": "2025"
 },
@@ -2093,7 +2093,7 @@
 "year": "2024"
 },
 "92": {
-"_reservado": false,
+"_reservado": true,
 "brand": "AP",
 "campa": "sin dato",
 "car_km": "26.174",
@@ -2111,7 +2111,7 @@
 "plate_date": "07/05/2024",
 "price_final": "16.700",
 "provenance": "5",
-"updated_at": "2026-10-20T09:26:56.000000Z",
+"updated_at": "2026-10-21T13:22:36.000000Z",
 "vin": "VR3FPHNS9RY551846",
 "year": "2024"
 },
