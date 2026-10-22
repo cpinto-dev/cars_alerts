@@ -1794,7 +1794,7 @@
 "year": "2025"
 },
 "80": {
-"_reservado": false,
+"_reservado": true,
 "brand": "OV",
 "campa": "sin dato",
 "car_km": "19.491",
@@ -1812,7 +1812,7 @@
 "plate_date": "29/02/2024",
 "price_final": "19.050",
 "provenance": "5",
-"updated_at": "2026-10-20T09:26:56.000000Z",
+"updated_at": "2026-10-22T08:21:35.000000Z",
 "vin": "W0VZ4DGZXR6004242",
 "year": "2024"
 },
@@ -1955,7 +1955,7 @@
 "year": "2024"
 },
 "87": {
-"_reservado": false,
+"_reservado": true,
 "brand": "AP",
 "campa": "sin dato",
 "car_km": "14.266",
@@ -1973,7 +1973,7 @@
 "plate_date": "30/05/2024",
 "price_final": "15.650",
 "provenance": "5",
-"updated_at": "2026-10-20T09:26:56.000000Z",
+"updated_at": "2026-10-22T08:15:46.000000Z",
 "vin": "VR3FPHNS9RY554956",
 "year": "2024"
 },
