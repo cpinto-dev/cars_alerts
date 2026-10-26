@@ -777,7 +777,7 @@
 "plate_date": "19/06/2024",
 "price_final": "16.750",
 "provenance": "Campo",
-"updated_at": "2026-10-20T09:26:56.000000Z",
+"updated_at": "2026-10-26T09:40:11.000000Z",
 "vin": "VR7BAHPY8RE041358",
 "year": "2024"
 },
@@ -1725,7 +1725,7 @@
 "year": "2024"
 },
 "78": {
-"_reservado": true,
+"_reservado": false,
 "brand": "OV",
 "campa": "sin dato",
 "car_km": "25.614",
@@ -1743,7 +1743,7 @@
 "plate_date": "02/01/2024",
 "price_final": "19.200",
 "provenance": "5",
-"updated_at": "2026-10-21T05:41:46.000000Z",
+"updated_at": "2026-10-26T09:41:06.000000Z",
 "vin": "VXKF3DGXTP1045101",
 "year": "2024"
 },
