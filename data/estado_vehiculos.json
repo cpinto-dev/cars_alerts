@@ -1725,7 +1725,7 @@
 "year": "2024"
 },
 "78": {
-"_reservado": false,
+"_reservado": true,
 "brand": "OV",
 "campa": "sin dato",
 "car_km": "25.614",
@@ -1743,7 +1743,7 @@
 "plate_date": "02/01/2024",
 "price_final": "19.200",
 "provenance": "5",
-"updated_at": "2026-10-26T09:41:06.000000Z",
+"updated_at": "2026-11-07T08:41:52.000000Z",
 "vin": "VXKF3DGXTP1045101",
 "year": "2024"
 },
