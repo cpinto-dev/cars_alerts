@@ -1725,7 +1725,7 @@
 "year": "2025"
 },
 "176": {
-"_reservado": false,
+"_reservado": true,
 "brand": "OV",
 "campa": "sin dato",
 "car_km": "36.062",
@@ -1743,7 +1743,7 @@
 "plate_date": "09/06/2025",
 "price_final": "14.400",
 "provenance": "5",
-"updated_at": "2026-11-10T15:00:29.000000Z",
+"updated_at": "2026-11-12T06:46:34.000000Z",
 "vin": "VXKUSHPW5SW042665",
 "year": "2025"
 },
