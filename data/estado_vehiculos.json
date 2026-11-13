@@ -368,7 +368,7 @@
 "year": "2024"
 },
 "116": {
-"_reservado": false,
+"_reservado": true,
 "brand": "AC",
 "campa": "sin dato",
 "car_km": "29.919",
@@ -386,7 +386,7 @@
 "plate_date": "31/08/2023",
 "price_final": "19.850",
 "provenance": "Campo",
-"updated_at": "2026-11-11T15:42:01.000000Z",
+"updated_at": "2026-11-13T00:45:28.000000Z",
 "vin": "VR7NDDGXPP4804827",
 "year": "2024"
 },
