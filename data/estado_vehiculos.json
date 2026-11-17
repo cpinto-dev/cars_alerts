@@ -1127,7 +1127,7 @@
 "year": "2024"
 },
 "149": {
-"_reservado": false,
+"_reservado": true,
 "brand": "JE",
 "campa": "sin dato",
 "car_km": "9.358",
@@ -1145,7 +1145,7 @@
 "plate_date": "22/05/2024",
 "price_final": "21.350",
 "provenance": "5",
-"updated_at": "2026-11-10T15:00:29.000000Z",
+"updated_at": "2026-11-17T15:22:29.000000Z",
 "vin": "1C4NJCEA5RPP85321",
 "year": "2024"
 },
